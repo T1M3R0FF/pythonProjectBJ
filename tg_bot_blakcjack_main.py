@@ -39,6 +39,7 @@ def card(message):
     elif len(counter) == 1:
         bot.send_message(message.chat.id, 'Приветствую, ты зарегистрировался на игру!\n'
                                           'Подожди, пока зарегистрируется второй игрок')
+        return True
 
     if counter[message.from_user.id] > 21:
         bot.send_message(message.chat.id, f'Для вас игра завершена, сумма ваших очков: {counter[message.from_user.id]}.'
