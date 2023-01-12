@@ -26,7 +26,7 @@ def start(message):
                                           'Подожди, пока зарегистрируется второй игрок')
     elif len(counter) == 2:
         for key in counter:
-            bot.send_message(key, 'Оба игрока на месте! Добро пожаловать в игру BlackJack! Да начнется игра!\n'
+            bot.send_message(key, 'Оба игрока на месте! Добро пожаловать в BlackJack! Да начнется игра!\n'
                                   'Возьмите себе карту через пункт меню "card"')
 
 
@@ -52,7 +52,7 @@ def card(message):
 
     if counter[message.from_user.id] == 21:
         bot.send_message(message.chat.id, 'Блекджек! Вы набрали 21 очко, поздравляем!'
-                                          ' Нажмите /finish, чтобы узнать, кто победил')
+                                          ' Нажмите /finish, чтобы закончить игру')
         for key in counter:
             if key != message.from_user.id:
                 bot.send_message(key, 'У вашего соперника блекджек!')
@@ -60,7 +60,7 @@ def card(message):
 
     elif counter[message.from_user.id] > 21:
         bot.send_message(message.chat.id, f'Для вас игра завершена! Сумма ваших очков: {counter[message.from_user.id]}.'
-                                          'Нажмите /finish, чтобы узнать, кто победил')
+                                          'Нажмите /finish, чтобы закончить игру')
         return True
 
 
