@@ -99,6 +99,12 @@ def finish(message):
                                                      and (counter[key1] > counter[key])):
             bot.send_message(key1, 'Вы победили, поздравляю!')
             bot.send_message(key, 'К сожалению,вы проиграли:(')
+        elif counter[key1] == 21 and counter[key] != 21:
+            bot.send_message(key1, 'Вы победили, поздравляю!')
+            bot.send_message(key, 'К сожалению,вы проиграли:(')
+        elif counter[key] == 21 and counter[key1] != 21:
+            bot.send_message(key, 'Вы победили, поздравляю!')
+            bot.send_message(key1, 'К сожалению,вы проиграли:(')
         bot.send_message(key, 'Если хотите сыграть еще, жмите /start')
         bot.send_message(key1, 'Если хотите сыграть еще, жмите /start')
         counter.clear()
