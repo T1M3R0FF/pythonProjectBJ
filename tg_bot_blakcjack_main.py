@@ -1,6 +1,7 @@
 import telebot
 import config
 import random
+from telebot import types
 
 bot = telebot.TeleBot(config.TOKEN)
 
@@ -26,16 +27,21 @@ def start(message):
                                           'Подожди, пока зарегистрируется второй игрок')
     elif len(counter) == 2:
         for key in counter:
-            bot.send_message(key, 'Оба игрока на месте! Добро пожаловать в BlackJack! Да начнется игра!\n'
-                                  'Возьмите себе карту через пункт меню "card"')
+            markup = types.InlineKeyboardMarkup(row_width=2)
+            button1 = types.InlineKeyboardButton('Взять карту', callback_data='card')
+            button2 = types.InlineKeyboardButton('Завершить набор карт', callback_data='finish')
+            markup.add(button1, button2)
+            bot.send_message(key, 'Оба игрока на месте, игра начинается! Добро пожаловать в BlackJack!\n'
+                                  'Возьмите себе карту', reply_markup=markup)
 
 
-@bot.message_handler(commands=['card'])  # взятие карты и зачисление очков
+# взятие карты и зачисление очков
 def card(message):
     global counter
     # проверки на дурака
     if len(counter) == 0:
         bot.send_message(message.chat.id, 'Для начала зарегистрируйся в игре через /start')
+
     elif len(counter) == 1:
         bot.send_message(message.chat.id, 'Приветствую, ты зарегистрировался на игру!\n'
                                           'Подожди, пока зарегистрируется второй игрок')
@@ -49,7 +55,13 @@ def card(message):
     key, value = random.choice(data)
     random_suit = random.choice(suits)
     counter[message.from_user.id] += value
-    bot.send_message(message.chat.id, f'Ваша карта : {key} {random_suit}, сумма очков: {counter[message.from_user.id]}')
+
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    button1 = types.InlineKeyboardButton('Взять карту', callback_data='card')
+    button2 = types.InlineKeyboardButton('Завершить набор карт', callback_data='finish')
+    markup.add(button1, button2)
+    bot.send_message(message.chat.id, f'Ваша карта : {key} {random_suit}, сумма очков: {counter[message.from_user.id]}',
+                     reply_markup=markup)
 
     if counter[message.from_user.id] == 21:
         bot.send_message(message.chat.id, 'Блекджек! Вы набрали 21 очко, поздравляем!'
@@ -65,7 +77,7 @@ def card(message):
         return True
 
 
-@bot.message_handler(commands=['finish'])  # окончание игры
+# окончание игры
 def finish(message):
     global check_set
     global counter
@@ -106,8 +118,10 @@ def finish(message):
         elif counter[key] == 21 and counter[key1] != 21:
             bot.send_message(key, 'Вы победили, поздравляю!')
             bot.send_message(key1, 'К сожалению,вы проиграли:(')
+
         bot.send_message(key, 'Если хотите сыграть еще, жмите /start')
         bot.send_message(key1, 'Если хотите сыграть еще, жмите /start')
+
         counter.clear()
         check_set.clear()
     return True
@@ -116,6 +130,15 @@ def finish(message):
 @bot.message_handler(content_types=['text'])
 def text_message(message):
     bot.send_message(message.chat.id, 'Никакого общения, только игра')
+
+
+@bot.callback_query_handler(func=lambda call: True)
+def callback(call):
+    if call.message:
+        if call.data == 'card':
+            card(call.message)
+        if call.data == 'finish':
+            finish(call.message)
 
 
 bot.polling(non_stop=True)
