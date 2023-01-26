@@ -1,3 +1,5 @@
+import time
+
 import telebot
 import config
 import random
@@ -13,120 +15,118 @@ cards = {'Шесть': 6, 'Семь': 7, 'Восемь': 8,
 data = list(cards.items())
 suits = ['пики', 'крести', 'черви', 'буби']
 counter = {}  # база данных игроков
+general_message = ""
 check_set = set()
 
 
 @bot.message_handler(commands=['start'])  # старт игры
 def start(message):
+    global general_message
+    bot.delete_message(message_id=message.message_id, chat_id=message.chat.id)
     if message.from_user.id in counter:
-        bot.reply_to(message, "Ты уже зарегистрирован в игре")
+        del_mes = bot.send_message(message.chat.id, "Ты уже зарегистрирован в игре")
+        start_game = ""
+        for i in counter:
+            start_game+=counter[i]["name"]+"\n"
+        bot.edit_message_text(chat_id=general_message.chat.id, message_id=general_message.message_id,
+                              text='Приветствую, Вы начали игру Black Jack!\n'
+                                   f'Подожди, пока зарегистрируется другие игроки. Готовы к игре:\n\n{start_game}')
+        time.sleep(2)
+        bot.delete_message(chat_id=del_mes.chat.id, message_id=del_mes.message_id)
         return True
-    counter.update({message.from_user.id: 0})
-    if len(counter) == 1:
-        bot.send_message(message.chat.id, 'Приветствую, ты зарегистрировался на игру!\n'
-                                          'Подожди, пока зарегистрируется второй игрок')
-    elif len(counter) == 2:
-        for key in counter:
-            markup = types.InlineKeyboardMarkup(row_width=2)
-            button1 = types.InlineKeyboardButton('Взять карту', callback_data='card')
-            button2 = types.InlineKeyboardButton('Завершить набор карт', callback_data='finish')
-            markup.add(button1, button2)
-            bot.send_message(key, 'Оба игрока на месте, игра начинается! Добро пожаловать в BlackJack!\n'
-                                  'Возьмите себе карту', reply_markup=markup)
+    counter.update({message.from_user.id: {"points":0,"name":message.from_user.first_name,"end_game":False}})
+    if len(counter) < bot.get_chat_member_count(message.chat.id)-1:
+        start_game = ""
+        for i in counter:
+            start_game+=counter[i]["name"]+"\n"
+        if len(counter)==1:
+            general_message = bot.send_message(message.chat.id, 'Приветствую, Вы начали игру Black Jack!\n'
+                                          f'Подожди, пока зарегистрируется другие игроки. Готовы к игре:\n\n{start_game}')
+            bot.pin_chat_message(chat_id=general_message.chat.id, message_id=general_message.message_id)
+        elif len(counter)>1 and general_message!="":bot.edit_message_text(chat_id=general_message.chat.id, message_id=general_message.message_id,text='Приветствую, Вы начали игру Black Jack!\n'
+                                          f'Подожди, пока зарегистрируется другие игроки. Готовы к игре:\n\n{start_game}')
+        else:
+            del_mes = bot.send_message(message.chat.id, "Попробуйте ещё раз")
+            time.sleep(2)
+            bot.delete_message(chat_id=del_mes.chat.id, message_id=del_mes.message_id)
+    else:
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        button0 = types.InlineKeyboardButton('Показать очки', callback_data='view')
+        button1 = types.InlineKeyboardButton('Взять карту', callback_data='card')
+        button2 = types.InlineKeyboardButton('Завершить набор карт', callback_data='finish')
+        markup.add(button0,button1, button2)
+        general_message = bot.edit_message_text(reply_markup=markup,text='Оба игрока на месте, игра начинается! Добро пожаловать в BlackJack!\n'
+                              'Возьмите себе карту',chat_id=general_message.chat.id,message_id=general_message.message_id)
+    print("FFFFFFFFFFF")
 
 
 # взятие карты и зачисление очков
-def card(message):
+def card(call):
     global counter
-    # проверки на дурака
-    if len(counter) == 0:
-        bot.send_message(message.chat.id, 'Для начала зарегистрируйся в игре через /start')
 
-    elif len(counter) == 1:
-        bot.send_message(message.chat.id, 'Приветствую, ты зарегистрировался на игру!\n'
-                                          'Подожди, пока зарегистрируется второй игрок')
-        return True
-
-    if counter[message.from_user.id] > 21:
-        bot.send_message(message.chat.id, f'Для вас игра завершена, сумма ваших очков: {counter[message.from_user.id]}.'
-                                          'Нажмите /finish для завершения игры')
+    if counter[call.from_user.id]["end_game"]:
+        send_a(call, f'Для вас игра завершена. Cумма ваших очков: {counter[call.from_user.id]["points"]}')
         return True
 
     key, value = random.choice(data)
     random_suit = random.choice(suits)
-    counter[message.from_user.id] += value
+    counter[call.from_user.id]['points'] += value
 
-    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup = types.InlineKeyboardMarkup(row_width=1)
     button1 = types.InlineKeyboardButton('Взять карту', callback_data='card')
     button2 = types.InlineKeyboardButton('Завершить набор карт', callback_data='finish')
     markup.add(button1, button2)
-    bot.send_message(message.chat.id, f'Ваша карта : {key} {random_suit}, сумма очков: {counter[message.from_user.id]}',
-                     reply_markup=markup)
+    send_a(call, f'Ваша карта : {key} {random_suit}, сумма очков: {counter[call.from_user.id]["points"]}')
 
-    if counter[message.from_user.id] == 21:
-        bot.send_message(message.chat.id, 'Блекджек! Вы набрали 21 очко, поздравляем!'
-                                          ' Нажмите /finish, чтобы закончить игру')
-        for key in counter:
-            if key != message.from_user.id:
-                bot.send_message(key, 'У вашего соперника блекджек!')
+    if counter[call.from_user.id]["points"] == 21:
+        finish(call)
         return True
 
-    elif counter[message.from_user.id] > 21:
-        bot.send_message(message.chat.id, f'Для вас игра завершена! Сумма ваших очков: {counter[message.from_user.id]}.'
-                                          'Нажмите /finish, чтобы закончить игру')
+    elif counter[call.from_user.id]["points"] > 21:
+        finish(call)
         return True
 
 
 # окончание игры
-def finish(message):
+def finish(call):
     global check_set
-    global counter
-
-    bot.send_message(message.chat.id, 'Вы решили закончить игру.')
-    bot.send_message(message.chat.id, f'Сумма ваших очков: {counter[message.from_user.id]}.')
-    check_set.add(message.chat.id)
+    global counter, general_message
+    counter[call.from_user.id]["end_game"]=True
+    send_a(call, f'Вы закончили игру.\nСумма ваших очков: {counter[call.from_user.id]["points"]}.')
+    check_set.add(call.from_user.id)
 
     # отправка очков сопернику
-    if len(check_set) == 1:
-        bot.send_message(message.chat.id, 'Жду окончания игры твоего соперника')
+    if len(check_set) != len(counter):
+        ends_game = ""
+        for i in check_set:
+            ends_game+=counter[i]["name"]+"\n"
+        if f'Закончили: {ends_game}'==f'{general_message.text}\n':
+            return True
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        button0 = types.InlineKeyboardButton('Показать очки', callback_data='view')
+        button1 = types.InlineKeyboardButton('Взять карту', callback_data='card')
+        button2 = types.InlineKeyboardButton('Завершить набор карт', callback_data='finish')
+        markup.add(button0,button1, button2)
+        general_message = bot.edit_message_text(f"Закончили: \n{ends_game}", chat_id=general_message.chat.id, message_id=general_message.message_id,reply_markup=markup)
 
-    elif len(check_set) == 2:
-        for key, key1 in counter, counter:
-            if key != message.from_user.id and key1 == message.from_user.id:
-                bot.send_message(key, f'Соперник решил закончить набор карт, сумма его очков: {counter[key1]}')
-                bot.send_message(key1, f'Соперник решил закончить набор карт, сумма очков соперника: {counter[key]}')
-                break
-            else:
-                bot.send_message(key, f'Соперник решил закончить набор карт, сумма его очков: {counter[key1]}')
-                bot.send_message(key1, f'Соперник решил закончить набор карт, сумма очков соперника: {counter[key]}')
-                break
-        if (counter[key1] > 22 > counter[key]) or ((counter[key1] and counter[key]) < 22
-                                                   and (counter[key] > counter[key1])):
-            bot.send_message(key, 'Вы победили, поздравляю!')
-            bot.send_message(key1, 'К сожалению, вы проиграли:(')
-        elif (counter[key1] == counter[key] and (counter[key1] and counter[key]) < 22) or ((counter[key]
-                                                                                            and counter[key1]) > 22):
-            bot.send_message(key1, 'У вас ничья!')
-            bot.send_message(key, 'У вас ничья!')
-        elif (counter[key] > 22 > counter[key1]) or ((counter[key1] and counter[key]) < 22
-                                                     and (counter[key1] > counter[key])):
-            bot.send_message(key1, 'Вы победили, поздравляю!')
-            bot.send_message(key, 'К сожалению,вы проиграли:(')
-        elif counter[key1] == 21 and counter[key] != 21:
-            bot.send_message(key1, 'Вы победили, поздравляю!')
-            bot.send_message(key, 'К сожалению,вы проиграли:(')
-        elif counter[key] == 21 and counter[key1] != 21:
-            bot.send_message(key, 'Вы победили, поздравляю!')
-            bot.send_message(key1, 'К сожалению,вы проиграли:(')
-
-        bot.send_message(key, 'Если хотите сыграть еще, жмите /start')
-        bot.send_message(key1, 'Если хотите сыграть еще, жмите /start')
-
-        counter.clear()
-        check_set.clear()
-    return True
+    else:
+        result = ""
+        winner = ""
+        for i in counter:
+            result+=f"{counter[i]['name']}: {counter[i]['points']}\n"
+        bot.edit_message_text(f'Все закончили игру.\nРезультаты:\n{result}',chat_id=general_message.chat.id,message_id=general_message.message_id)
 
 
+
+
+
+def view(call):
+    send_a(call,f"Ваши очки {counter[call.from_user.id]['points']}")
+
+
+
+def send_a(call, message):
+    bot.answer_callback_query(callback_query_id=call.id, text=message,show_alert=True)
 @bot.message_handler(content_types=['text'])
 def text_message(message):
     bot.send_message(message.chat.id, 'Никакого общения, только игра')
@@ -136,9 +136,11 @@ def text_message(message):
 def callback(call):
     if call.message:
         if call.data == 'card':
-            card(call.message)
+            card(call)
         if call.data == 'finish':
-            finish(call.message)
+            finish(call)
+        if call.data == "view":
+            view(call)
 
 
 bot.polling(non_stop=True)
